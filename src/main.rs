@@ -20,6 +20,7 @@ use nom::Parser;
 use std::fs;
 use std::fs::copy;
 use std::path::PathBuf;
+use std::process::Command;
 use std::time::Duration;
 use watchexec::{
     action::{Action, Outcome},
@@ -27,7 +28,6 @@ use watchexec::{
     handler::PrintDebug,
     Watchexec,
 };
-
 use watchexec_signals::Signal;
 
 #[derive(Clone)]
@@ -37,6 +37,7 @@ struct Config {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    try_to_set_tmux_title();
     let mut init = InitConfig::default();
     init.on_error(PrintDebug(std::io::stderr()));
     let mut runtime = RuntimeConfig::default();
@@ -87,11 +88,11 @@ fn load_dotfiles_from_grimoire() {
             .collect::<Vec<PathBuf>>(),
     );
     paths.iter().for_each(|p| {
-        dbg!(&p);
         let data = fs::read_to_string(p).unwrap();
         match do_the_thing(data.as_str()).unwrap().1 {
             None => {}
             Some((path, content)) => {
+                dbg!(&path);
                 let _ = fs::write(path, content);
                 ()
             }
@@ -130,4 +131,9 @@ pub fn filter_extensions(list: Vec<PathBuf>) -> Vec<PathBuf> {
             None => false,
         })
         .collect()
+}
+
+pub fn try_to_set_tmux_title() {
+    let args: Vec<&str> = vec!["select-pane", "-T", "dotfile_loader"];
+    let _ = Command::new("tmux").args(args).output().unwrap();
 }
